@@ -5,6 +5,7 @@ package query
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type DBTX interface {
@@ -18,12 +19,98 @@ func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
 
+func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
+	q := Queries{db: db}
+	var err error
+	if q.createAuthorStmt, err = db.PrepareContext(ctx, createAuthor); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAuthor: %w", err)
+	}
+	if q.createAuthorsStmt, err = db.PrepareContext(ctx, createAuthors); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAuthors: %w", err)
+	}
+	if q.updateAuthorStmt, err = db.PrepareContext(ctx, updateAuthor); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateAuthor: %w", err)
+	}
+	if q.updateAuthorsStmt, err = db.PrepareContext(ctx, updateAuthors); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateAuthors: %w", err)
+	}
+	return &q, nil
+}
+
+func (q *Queries) Close() error {
+	var err error
+	if q.createAuthorStmt != nil {
+		if cerr := q.createAuthorStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAuthorStmt: %w", cerr)
+		}
+	}
+	if q.createAuthorsStmt != nil {
+		if cerr := q.createAuthorsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAuthorsStmt: %w", cerr)
+		}
+	}
+	if q.updateAuthorStmt != nil {
+		if cerr := q.updateAuthorStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateAuthorStmt: %w", cerr)
+		}
+	}
+	if q.updateAuthorsStmt != nil {
+		if cerr := q.updateAuthorsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateAuthorsStmt: %w", cerr)
+		}
+	}
+	return err
+}
+
+func (q *Queries) exec(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (sql.Result, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).ExecContext(ctx, args...)
+	case stmt != nil:
+		return stmt.ExecContext(ctx, args...)
+	default:
+		return q.db.ExecContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) query(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (*sql.Rows, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryContext(ctx, args...)
+	default:
+		return q.db.QueryContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) *sql.Row {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryRowContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryRowContext(ctx, args...)
+	default:
+		return q.db.QueryRowContext(ctx, query, args...)
+	}
+}
+
 type Queries struct {
-	db DBTX
+	db                DBTX
+	tx                *sql.Tx
+	createAuthorStmt  *sql.Stmt
+	createAuthorsStmt *sql.Stmt
+	updateAuthorStmt  *sql.Stmt
+	updateAuthorsStmt *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db: tx,
+		db:                tx,
+		tx:                tx,
+		createAuthorStmt:  q.createAuthorStmt,
+		createAuthorsStmt: q.createAuthorsStmt,
+		updateAuthorStmt:  q.updateAuthorStmt,
+		updateAuthorsStmt: q.updateAuthorsStmt,
 	}
 }

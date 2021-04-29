@@ -13,24 +13,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *exp.DB
+var queries *query.Queries
 var counter int64
 
 // TestMain setup and teardown the database before the tests.
 func TestMain(m *testing.M) {
-	var err error
-	db, err = exp.LoadDB()
+	db, err := exp.LoadDB()
 	if err != nil {
 		fmt.Printf("fail to load db: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = db.Up()
-	if err != nil {
-		fmt.Printf("fail to create db: %v\n", err)
-	}
-
-	code := m.Run()
+	code := testMain(db, m)
 
 	err = db.Drop()
 	if err != nil {
@@ -43,11 +37,26 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func testMain(db *exp.DB, m *testing.M) int {
+	err := db.Up()
+	if err != nil {
+		fmt.Printf("fail to create db: %v\n", err)
+		return 1
+	}
+
+	queries, err = query.Prepare(context.Background(), db)
+	if err != nil {
+		fmt.Printf("fail to prepare queries: %v\n", err)
+		return 1
+	}
+
+	return m.Run()
+}
+
 func BenchmarkCreateAuthor(b *testing.B) {
-	q := query.New(db)
 	for i := 0; i < b.N; i++ {
 		id := atomic.AddInt64(&counter, 1)
-		err := q.CreateAuthor(context.Background(), query.CreateAuthorParams{
+		err := queries.CreateAuthor(context.Background(), query.CreateAuthorParams{
 			ID:   id,
 			Name: fmt.Sprintf("Author %d", id),
 			Bio: sql.NullString{
@@ -69,7 +78,6 @@ func BenchmarkCreateAuthors1000(b *testing.B) { benchmarkCreateAuthors(b, 1000) 
 
 func benchmarkCreateAuthors(b *testing.B, count int) {
 	var params query.CreateAuthorsParams
-	q := query.New(db)
 	for i := 0; i < b.N; i++ {
 		// We aggregate the records.
 		for j := 0; j < count; j++ {
@@ -80,7 +88,7 @@ func benchmarkCreateAuthors(b *testing.B, count int) {
 		}
 
 		// We create them all at once.
-		err := q.CreateAuthors(context.Background(), params)
+		err := queries.CreateAuthors(context.Background(), params)
 		if err != nil {
 			b.Fatalf("fail to create authors: %v", err)
 		}
@@ -91,10 +99,9 @@ func benchmarkCreateAuthors(b *testing.B, count int) {
 }
 
 func BenchmarkUpdateAuthor(b *testing.B) {
-	q := query.New(db)
 	for i := 0; i < b.N; i++ {
 		id := int64(i) % counter
-		err := q.UpdateAuthor(context.Background(), query.UpdateAuthorParams{
+		err := queries.UpdateAuthor(context.Background(), query.UpdateAuthorParams{
 			ID:   id,
 			Name: fmt.Sprintf("Author %d updated", id),
 			Bio: sql.NullString{
@@ -116,7 +123,6 @@ func BenchmarkUpdateAuthors1000(b *testing.B) { benchmarkUpdateAuthors(b, 1000) 
 
 func benchmarkUpdateAuthors(b *testing.B, count int) {
 	var params query.UpdateAuthorsParams
-	q := query.New(db)
 	for i := 0; i < b.N; i++ {
 		// We aggregate the records.
 		for j := 0; j < count; j++ {
@@ -126,7 +132,7 @@ func benchmarkUpdateAuthors(b *testing.B, count int) {
 			params.Bios = append(params.Bios, fmt.Sprintf("Author %d is still an exceptional person.", id))
 		}
 		// We update them all at once.
-		err := q.UpdateAuthors(context.Background(), params)
+		err := queries.UpdateAuthors(context.Background(), params)
 		if err != nil {
 			b.Fatalf("fail to create authors: %v", err)
 		}

@@ -21,7 +21,7 @@ type CreateAuthorParams struct {
 }
 
 func (q *Queries) CreateAuthor(ctx context.Context, arg CreateAuthorParams) error {
-	_, err := q.db.ExecContext(ctx, createAuthor, arg.ID, arg.Name, arg.Bio)
+	_, err := q.exec(ctx, q.createAuthorStmt, createAuthor, arg.ID, arg.Name, arg.Bio)
 	return err
 }
 
@@ -39,7 +39,7 @@ type CreateAuthorsParams struct {
 }
 
 func (q *Queries) CreateAuthors(ctx context.Context, arg CreateAuthorsParams) error {
-	_, err := q.db.ExecContext(ctx, createAuthors, pq.Array(arg.Ids), pq.Array(arg.Names), pq.Array(arg.Bios))
+	_, err := q.exec(ctx, q.createAuthorsStmt, createAuthors, pq.Array(arg.Ids), pq.Array(arg.Names), pq.Array(arg.Bios))
 	return err
 }
 
@@ -54,7 +54,7 @@ type UpdateAuthorParams struct {
 }
 
 func (q *Queries) UpdateAuthor(ctx context.Context, arg UpdateAuthorParams) error {
-	_, err := q.db.ExecContext(ctx, updateAuthor, arg.ID, arg.Name, arg.Bio)
+	_, err := q.exec(ctx, q.updateAuthorStmt, updateAuthor, arg.ID, arg.Name, arg.Bio)
 	return err
 }
 
@@ -76,6 +76,6 @@ type UpdateAuthorsParams struct {
 }
 
 func (q *Queries) UpdateAuthors(ctx context.Context, arg UpdateAuthorsParams) error {
-	_, err := q.db.ExecContext(ctx, updateAuthors, pq.Array(arg.Ids), pq.Array(arg.Names), pq.Array(arg.Bios))
+	_, err := q.exec(ctx, q.updateAuthorsStmt, updateAuthors, pq.Array(arg.Ids), pq.Array(arg.Names), pq.Array(arg.Bios))
 	return err
 }

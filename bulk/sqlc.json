@@ -5,7 +5,8 @@
       "path": "query",
       "engine": "postgresql",
       "schema": "schema.sql",
-      "queries": "query.sql"
+      "queries": "query.sql",
+      "emit_prepared_queries": true
     }
   ]
 }
