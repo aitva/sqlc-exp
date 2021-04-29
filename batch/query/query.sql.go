@@ -66,7 +66,7 @@ FROM (
   unnest($2::text[]) AS name,
   unnest($3::text[]) AS bio
 ) AS tmp
-WHERE s.id = tmp.id
+WHERE a.id = tmp.id
 `
 
 type UpdateAuthorsParams struct {

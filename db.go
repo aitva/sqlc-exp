@@ -24,21 +24,15 @@ type DB struct {
 // LoadDB loads database information from the environment.
 func LoadDB() (*DB, error) {
 	db := &DB{
-		Host:   os.Getenv("DB_HOST"),
+		Host:   "127.0.0.1",
 		Port:   5432,
 		Name:   os.Getenv("DB_NAME"),
 		User:   os.Getenv("DB_USER"),
 		Pass:   os.Getenv("DB_PASS"),
-		Schema: os.Getenv("DB_SCHEMA"),
+		Schema: "schema.sql",
 	}
-	if db.Host == "" {
-		return nil, fmt.Errorf("DB_HOST is required")
-	}
-	if db.User == "" {
-		return nil, fmt.Errorf("DB_USER is required")
-	}
-	if db.Name == "" {
-		db.Name = db.User
+	if tmp := os.Getenv("DB_HOST"); tmp != "" {
+		db.Host = tmp
 	}
 	if tmp := os.Getenv("DB_PORT"); tmp != "" {
 		var err error
@@ -47,8 +41,14 @@ func LoadDB() (*DB, error) {
 			return nil, fmt.Errorf("fail to parse DB_PORT: %v", err)
 		}
 	}
-	if db.Schema == "" {
-		return nil, fmt.Errorf("DB_SCHEMA is required")
+	if db.User == "" {
+		return nil, fmt.Errorf("DB_USER is required")
+	}
+	if db.Name == "" {
+		db.Name = db.User
+	}
+	if tmp := os.Getenv("DB_SCHEMA"); tmp != "" {
+		db.Schema = tmp
 	}
 
 	var err error

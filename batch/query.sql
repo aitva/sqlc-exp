@@ -18,4 +18,4 @@ FROM (
   unnest(@names::text[]) AS name,
   unnest(@bios::text[]) AS bio
 ) AS tmp
-WHERE s.id = tmp.id;
+WHERE a.id = tmp.id;
