@@ -1,4 +1,4 @@
-package batch
+package bulk
 
 import (
 	"context"
@@ -71,16 +71,15 @@ func benchmarkCreateAuthors(b *testing.B, count int) {
 	var params query.CreateAuthorsParams
 	q := query.New(db)
 	for i := 0; i < b.N; i++ {
-		// We aggregate the columns into arrays.
-		id := atomic.AddInt64(&counter, 1)
-		params.Ids = append(params.Ids, id)
-		params.Names = append(params.Names, fmt.Sprintf("Author %d", id))
-		params.Bios = append(params.Bios, fmt.Sprintf("Author %d is an exceptional person.", id))
-		if len(params.Ids) < count {
-			continue
+		// We aggregate the records.
+		for j := 0; j < count; j++ {
+			id := atomic.AddInt64(&counter, 1)
+			params.Ids = append(params.Ids, id)
+			params.Names = append(params.Names, fmt.Sprintf("Author %d", id))
+			params.Bios = append(params.Bios, fmt.Sprintf("Author %d is an exceptional person.", id))
 		}
 
-		// We create multiple records at once.
+		// We create them all at once.
 		err := q.CreateAuthors(context.Background(), params)
 		if err != nil {
 			b.Fatalf("fail to create authors: %v", err)
@@ -119,16 +118,14 @@ func benchmarkUpdateAuthors(b *testing.B, count int) {
 	var params query.UpdateAuthorsParams
 	q := query.New(db)
 	for i := 0; i < b.N; i++ {
-		// We aggregate the columns into arrays.
-		id := int64(i) % counter
-		params.Ids = append(params.Ids, id)
-		params.Names = append(params.Names, fmt.Sprintf("Author %d updated", id))
-		params.Bios = append(params.Bios, fmt.Sprintf("Author %d is still an exceptional person.", id))
-		if len(params.Ids) < count {
-			continue
+		// We aggregate the records.
+		for j := 0; j < count; j++ {
+			id := int64((i*count)+j) % counter
+			params.Ids = append(params.Ids, id)
+			params.Names = append(params.Names, fmt.Sprintf("Author %d updated", id))
+			params.Bios = append(params.Bios, fmt.Sprintf("Author %d is still an exceptional person.", id))
 		}
-
-		// We update multiple records at once.
+		// We update them all at once.
 		err := q.UpdateAuthors(context.Background(), params)
 		if err != nil {
 			b.Fatalf("fail to create authors: %v", err)
