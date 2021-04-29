@@ -1,4 +1,4 @@
-module github.com/aitva/sqlc-parser-bug
+module github.com/aitva/sqlc-exp
 
 go 1.16
 

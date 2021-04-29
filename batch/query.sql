@@ -1,15 +1,14 @@
--- Example queries for sqlc
-CREATE TABLE authors (
-  id   BIGSERIAL PRIMARY KEY,
-  name text      NOT NULL,
-  bio  text
-);
+-- name: CreateAuthor :exec
+INSERT INTO authors (id, name, bio) VALUES ($1, $2, $3);
 
 -- name: CreateAuthors :exec
 INSERT INTO authors
 SELECT unnest(@ids::bigint[]) AS id,
   unnest(@names::text[]) AS name,
   unnest(@bios::text[]) AS bio;
+
+-- name: UpdateAuthor :exec
+UPDATE authors SET name = $2, bio = $3 WHERE id = $1;
 
 -- name: UpdateAuthors :exec
 UPDATE authors AS a

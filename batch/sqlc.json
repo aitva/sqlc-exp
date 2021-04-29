@@ -2,7 +2,7 @@
   "version": "1",
   "packages": [
     {
-      "path": "db",
+      "path": "query",
       "engine": "postgresql",
       "schema": "schema.sql",
       "queries": "query.sql"
