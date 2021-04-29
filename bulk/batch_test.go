@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	exp "github.com/aitva/sqlc-exp"
-	"github.com/aitva/sqlc-exp/batch/query"
+	"github.com/aitva/sqlc-exp/bulk/query"
 	_ "github.com/lib/pq"
 )
 
