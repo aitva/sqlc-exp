@@ -1,6 +1,8 @@
 # Sqlc experiment
 
-Test bulk insert and update with [sqlc](github.com/kyleconroy/sqlc).
+Each folder contains an experiment on [sqlc](github.com/kyleconroy/sqlc).
+The experiments can be run with `go test` and a few environment variables:
+`DB_HOST=localhost DB_USER=user DB_PASS=pass go test ./...`.
 
-See
-https://play.sqlc.dev/p/c02166a96ca45406df2695fcde1db2515d1f6aa9176ce85b4fdc24ad45eecdba
+- [bulk](./bulk) test bulk insert and update
+- [zeroes](./zeros) test zero values for various SQL types
