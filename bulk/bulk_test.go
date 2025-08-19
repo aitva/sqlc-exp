@@ -1,20 +1,15 @@
 package bulk
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"os"
-	"sync/atomic"
 	"testing"
 
 	exp "github.com/aitva/sqlc-exp"
-	"github.com/aitva/sqlc-exp/bulk/query"
 	_ "github.com/lib/pq"
 )
 
-var queries *query.Queries
-var counter int64
+var bulk *Bulk
 
 // TestMain setup and teardown the database before the tests.
 func TestMain(m *testing.M) {
@@ -44,9 +39,9 @@ func testMain(db *exp.DB, m *testing.M) int {
 		return 1
 	}
 
-	queries, err = query.Prepare(context.Background(), db)
+	bulk, err = New(db.DB)
 	if err != nil {
-		fmt.Printf("fail to prepare queries: %v\n", err)
+		fmt.Printf("fail to create bulk: %v\n", err)
 		return 1
 	}
 
@@ -54,20 +49,19 @@ func testMain(db *exp.DB, m *testing.M) int {
 }
 
 func BenchmarkCreateAuthor(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		id := atomic.AddInt64(&counter, 1)
-		err := queries.CreateAuthor(context.Background(), query.CreateAuthorParams{
-			ID:   id,
-			Name: fmt.Sprintf("Author %d", id),
-			Bio: sql.NullString{
-				Valid:  true,
-				String: fmt.Sprintf("Author %d is an exceptional person.", id),
-			},
-		})
+	for b.Loop() {
+		err := bulk.CreateAuthor(b.Context(), NewAuthor(bulk.ID()))
 		if err != nil {
 			b.Fatalf("fail to create author: %v", err)
 		}
 	}
+
+	// Compute time per operation by multiplying b.N by the lenght of
+	// the dataset.
+	//us := b.Elapsed().Microseconds() / int64(b.N)
+	//b.ReportMetric(float64(us), "μs/op")
+	ns := b.Elapsed().Nanoseconds() / int64(b.N)
+	b.ReportMetric(float64(ns), "ns/op")
 }
 
 func BenchmarkCreateAuthors10(b *testing.B) { benchmarkCreateAuthors(b, 10) }
@@ -76,43 +70,46 @@ func BenchmarkCreateAuthors100(b *testing.B) { benchmarkCreateAuthors(b, 100) }
 
 func BenchmarkCreateAuthors1000(b *testing.B) { benchmarkCreateAuthors(b, 1000) }
 
+func BenchmarkCreateAuthors10000(b *testing.B) { benchmarkCreateAuthors(b, 10000) }
+
 func benchmarkCreateAuthors(b *testing.B, count int) {
-	var params query.CreateAuthorsParams
-	for i := 0; i < b.N; i++ {
-		// We aggregate the records.
-		for j := 0; j < count; j++ {
-			id := atomic.AddInt64(&counter, 1)
-			params.Ids = append(params.Ids, id)
-			params.Names = append(params.Names, fmt.Sprintf("Author %d", id))
-			params.Bios = append(params.Bios, fmt.Sprintf("Author %d is an exceptional person.", id))
+	for b.Loop() {
+		authors := make([]Author, count)
+		for i := range authors {
+			authors[i] = NewAuthor(bulk.ID())
 		}
 
-		// We create them all at once.
-		err := queries.CreateAuthors(context.Background(), params)
+		err := bulk.BulkCreateAuthor(b.Context(), authors)
 		if err != nil {
-			b.Fatalf("fail to create authors: %v", err)
+			b.Fatalf("fail to bulk create authors: %v", err)
 		}
-		params.Ids = params.Ids[:0]
-		params.Names = params.Names[:0]
-		params.Bios = params.Bios[:0]
 	}
+
+	// Compute time per operation by multiplying b.N by the lenght of
+	// the dataset.
+	//us := b.Elapsed().Microseconds() / int64(b.N*count)
+	//b.ReportMetric(float64(us), "μs/op")
+	ns := b.Elapsed().Nanoseconds() / int64(b.N*count)
+	b.ReportMetric(float64(ns), "ns/op")
 }
 
 func BenchmarkUpdateAuthor(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		id := int64(i) % counter
-		err := queries.UpdateAuthor(context.Background(), query.UpdateAuthorParams{
-			ID:   id,
-			Name: fmt.Sprintf("Author %d updated", id),
-			Bio: sql.NullString{
-				Valid:  true,
-				String: fmt.Sprintf("Author %d is still an exceptional person.", id),
-			},
-		})
+	max := bulk.MaxID()
+	id := int64(0)
+	for b.Loop() {
+		err := bulk.UpdateAuthor(b.Context(), UpdateAuthor(id))
 		if err != nil {
 			b.Fatalf("fail to update author: %v", err)
 		}
+		id = (id + 1) % max
 	}
+
+	// Compute time per operation by multiplying b.N by the lenght of
+	// the dataset.
+	//us := b.Elapsed().Microseconds() / int64(b.N)
+	//b.ReportMetric(float64(us), "μs/op")
+	ns := b.Elapsed().Nanoseconds() / int64(b.N)
+	b.ReportMetric(float64(ns), "ns/op")
 }
 
 func BenchmarkUpdateAuthors10(b *testing.B) { benchmarkUpdateAuthors(b, 10) }
@@ -121,23 +118,29 @@ func BenchmarkUpdateAuthors100(b *testing.B) { benchmarkUpdateAuthors(b, 100) }
 
 func BenchmarkUpdateAuthors1000(b *testing.B) { benchmarkUpdateAuthors(b, 1000) }
 
+func BenchmarkUpdateAuthors10000(b *testing.B) { benchmarkUpdateAuthors(b, 10000) }
+
 func benchmarkUpdateAuthors(b *testing.B, count int) {
-	var params query.UpdateAuthorsParams
-	for i := 0; i < b.N; i++ {
-		// We aggregate the records.
-		for j := 0; j < count; j++ {
-			id := int64((i*count)+j) % counter
-			params.Ids = append(params.Ids, id)
-			params.Names = append(params.Names, fmt.Sprintf("Author %d updated", id))
-			params.Bios = append(params.Bios, fmt.Sprintf("Author %d is still an exceptional person.", id))
+	max := bulk.MaxID()
+	id := int64(0)
+	for b.Loop() {
+		authors := make([]Author, count)
+		for i := range authors {
+			authors[i] = UpdateAuthor(id)
 		}
-		// We update them all at once.
-		err := queries.UpdateAuthors(context.Background(), params)
+
+		err := bulk.BulkUpdateAuthor(b.Context(), authors)
 		if err != nil {
-			b.Fatalf("fail to create authors: %v", err)
+			b.Fatalf("fail to bulk update authors: %v", err)
 		}
-		params.Ids = params.Ids[:0]
-		params.Names = params.Names[:0]
-		params.Bios = params.Bios[:0]
+
+		id = (id + 1) % max
 	}
+
+	// Compute time per operation by multiplying b.N by the lenght of
+	// the dataset.
+	//us := b.Elapsed().Microseconds() / int64(b.N*count)
+	//b.ReportMetric(float64(us), "μs/op")
+	ns := b.Elapsed().Nanoseconds() / int64(b.N*count)
+	b.ReportMetric(float64(ns), "ns/op")
 }

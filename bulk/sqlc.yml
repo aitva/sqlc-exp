@@ -1,0 +1,16 @@
+version: "2"
+sql:
+- schema: "schema.sql"
+  queries: "query.sql"
+  engine: "postgresql"
+  gen:
+    go: 
+      package: "query"
+      out: "query"
+      emit_prepared_queries: true
+      overrides:
+      - db_type: "text_null"
+        go_type: "database/sql.NullString"
+        nullable: false
+      rename:
+        ids: IDs

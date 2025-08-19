@@ -3,18 +3,18 @@ package exp
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 )
 
 // DB stores the connection information of a database.
 type DB struct {
-	Host string
-	Port int
-	Name string
-	User string
-	Pass string
+	Host    string
+	Port    int
+	Name    string
+	User    string
+	Pass    string
+	SSLMode string
 
 	Schema string
 
@@ -24,12 +24,13 @@ type DB struct {
 // LoadDB loads database information from the environment.
 func LoadDB() (*DB, error) {
 	db := &DB{
-		Host:   "127.0.0.1",
-		Port:   5432,
-		Name:   os.Getenv("DB_NAME"),
-		User:   os.Getenv("DB_USER"),
-		Pass:   os.Getenv("DB_PASS"),
-		Schema: "schema.sql",
+		Host:    "127.0.0.1",
+		Port:    5432,
+		Name:    os.Getenv("DB_NAME"),
+		User:    os.Getenv("DB_USER"),
+		Pass:    os.Getenv("DB_PASS"),
+		SSLMode: os.Getenv("DB_SSLMODE"),
+		Schema:  "schema.sql",
 	}
 	if tmp := os.Getenv("DB_HOST"); tmp != "" {
 		db.Host = tmp
@@ -50,6 +51,9 @@ func LoadDB() (*DB, error) {
 	if tmp := os.Getenv("DB_SCHEMA"); tmp != "" {
 		db.Schema = tmp
 	}
+	if db.SSLMode == "" {
+		db.SSLMode = "required"
+	}
 
 	var err error
 	db.DB, err = sql.Open("postgres", db.connString())
@@ -61,7 +65,7 @@ func LoadDB() (*DB, error) {
 }
 
 func (db *DB) Up() error {
-	data, err := ioutil.ReadFile(db.Schema)
+	data, err := os.ReadFile(db.Schema)
 	if err != nil {
 		return fmt.Errorf("read %v: %v", db.Schema, err)
 	}
@@ -75,7 +79,7 @@ func (db *DB) Up() error {
 }
 
 func (db *DB) Drop() error {
-	_, err := db.Exec("DROP OWNED BY " + db.User)
+	_, err := db.Exec(fmt.Sprintf("DROP OWNED BY %q", db.User))
 	if err != nil {
 		return fmt.Errorf("exec: %v", err)
 	}
@@ -83,6 +87,6 @@ func (db *DB) Drop() error {
 }
 
 func (db *DB) connString() string {
-	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s",
-		db.Host, db.Port, db.Name, db.User, db.Pass)
+	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
+		db.Host, db.Port, db.Name, db.User, db.Pass, db.SSLMode)
 }
