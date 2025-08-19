@@ -1,8 +1,10 @@
 # Sqlc experiment
 
-Each folder contains an experiment on [sqlc](github.com/kyleconroy/sqlc).
-The experiments can be run with `go test` and a few environment variables:
-`DB_HOST=localhost DB_USER=sqlc-exp DB_PASS=sqlc-exp DB_SSLMODE=disable go test -bench . ./...`.
+Each folder contains an experiment on [sqlc][1]. The experiments can be run
+with `go test` and a few environment variables: `DB_HOST=localhost
+DB_USER=sqlc-exp DB_PASS=sqlc-exp DB_SSLMODE=disable go test ./...`.
+
+[1]: github.com/kyleconroy/sqlc
 
 ## Bulk
 
